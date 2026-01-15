@@ -7,7 +7,7 @@ const bot = new Telegraf(BOT_TOKEN);
 
 // /start komutu gelince
 bot.start((ctx) => {
-    const webAppUrl = https://deneme2-lac.vercel.app/;
+    const webAppUrl = "https://deneme2-lac.vercel.app/;
 
     // Mesaj ve Buton İNGİLİZCE oldu
     ctx.reply("Welcome! Click the button below to open the app:", {
