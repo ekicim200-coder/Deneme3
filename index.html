@@ -65,6 +65,7 @@ button { width:100%; padding:12px; border:none; border-radius:10px; font-size:0.
 <div id="mainScreen" style="display:none;">
     <h1>🎁 <span>Promo</span> Manager</h1>
 
+    <!-- CREATE PROMO -->
     <div class="card">
         <h2>➕ Create Promo Code</h2>
 
@@ -104,15 +105,20 @@ button { width:100%; padding:12px; border:none; border-radius:10px; font-size:0.
                 <label>Max Uses</label>
                 <input type="number" id="maxUses" value="100" min="1">
             </div>
-            <div>
+            <div id="expiresField">
                 <label>Expires In (hours, 0=never)</label>
                 <input type="number" id="expiresIn" value="0" min="0">
+            </div>
+            <div id="machineDurationField" style="display:none;">
+                <label>Machine Duration (minutes)</label>
+                <input type="number" id="machineDuration" value="30" min="1" placeholder="30">
             </div>
         </div>
 
         <button class="btn-create" onclick="createPromo()">🚀 Create Promo</button>
     </div>
 
+    <!-- PROMO LIST -->
     <div class="card">
         <h2>📋 Active Promos</h2>
         <div id="promoList" class="promo-list">
@@ -139,6 +145,8 @@ function toggleRewardFields() {
     const type = document.getElementById('rewardType').value;
     document.getElementById('amountField').style.display = type === 'ton' ? 'block' : 'none';
     document.getElementById('machineSelect').style.display = type === 'machine' ? 'block' : 'none';
+    document.getElementById('machineDurationField').style.display = type === 'machine' ? 'block' : 'none';
+    document.getElementById('expiresField').style.display = type === 'machine' ? 'none' : 'block';
 }
 
 async function createPromo() {
@@ -147,14 +155,16 @@ async function createPromo() {
     const maxUses = parseInt(document.getElementById('maxUses').value) || 100;
     const expiresIn = parseInt(document.getElementById('expiresIn').value) || 0;
 
-    let rewardAmount;
+    let rewardAmount, machineDuration = 0;
     if (rewardType === 'ton') {
         rewardAmount = parseFloat(document.getElementById('rewardAmount').value);
         if (!rewardAmount || rewardAmount <= 0) return showToast('Enter TON amount', true);
     } else if (rewardType === 'machine') {
         rewardAmount = parseInt(document.getElementById('machineId').value);
+        machineDuration = parseInt(document.getElementById('machineDuration').value) || 30;
+        if (machineDuration < 1) return showToast('Duration must be at least 1 minute', true);
     } else {
-        rewardAmount = 1;
+        rewardAmount = 1; // spin
     }
 
     if (!code || code.length < 3) return showToast('Code must be 3+ characters', true);
@@ -163,9 +173,10 @@ async function createPromo() {
         const res = await fetch(API, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'create', code, rewardType, rewardAmount, maxUses, expiresIn, adminKey: ADMIN_KEY })
+            body: JSON.stringify({ action: 'create', code, rewardType, rewardAmount, maxUses, expiresIn, machineDuration, adminKey: ADMIN_KEY })
         });
         const data = await res.json();
+
         if (data.success) {
             showToast('✅ ' + code + ' created!');
             document.getElementById('promoCode').value = '';
@@ -207,7 +218,7 @@ async function loadPromos() {
 
             let rewardLabel, badgeClass;
             if (p.rewardType === 'ton') { rewardLabel = p.rewardAmount + ' TON'; badgeClass = 'badge-ton'; }
-            else if (p.rewardType === 'machine') { rewardLabel = machineNames[p.rewardAmount] || 'Machine #' + p.rewardAmount; badgeClass = 'badge-machine'; }
+            else if (p.rewardType === 'machine') { rewardLabel = (machineNames[p.rewardAmount] || 'Machine #' + p.rewardAmount) + ' (' + (p.machineDuration || 30) + ' min)'; badgeClass = 'badge-machine'; }
             else { rewardLabel = 'Free Spin'; badgeClass = 'badge-spin'; }
 
             const statusBadge = isExpired ? '<span class="badge badge-expired">EXPIRED</span>' :
