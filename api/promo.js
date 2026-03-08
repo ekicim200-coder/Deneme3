@@ -14,7 +14,7 @@ module.exports = async (req, res) => {
 
         // ==================== ADMIN: CREATE PROMO ====================
         if (action === 'create') {
-            const { code, rewardType, rewardAmount, maxUses, expiresIn, adminKey } = req.body;
+            const { code, rewardType, rewardAmount, maxUses, expiresIn, machineDuration, adminKey } = req.body;
 
             if (adminKey !== (process.env.ADMIN_KEY || 'tonmining2025')) {
                 return res.status(403).json({ success: false, error: 'Unauthorized' });
@@ -32,13 +32,14 @@ module.exports = async (req, res) => {
 
             await promoRef.set({
                 code: code.toUpperCase(),
-                rewardType,        // 'ton', 'machine', 'spin'
-                rewardAmount,       // TON amount, machine ID, or spin count
+                rewardType,
+                rewardAmount,
+                machineDuration: rewardType === 'machine' ? (machineDuration || 30) : null,
                 maxUses: maxUses || 100,
                 usedCount: 0,
                 usedBy: [],
                 createdAt: Date.now(),
-                expiresAt: expiresIn ? Date.now() + (expiresIn * 3600000) : null, // hours to ms
+                expiresAt: expiresIn ? Date.now() + (expiresIn * 3600000) : null,
                 active: true
             });
 
@@ -125,7 +126,10 @@ module.exports = async (req, res) => {
 
             } else if (promo.rewardType === 'machine') {
                 const inv = userData.inv || [];
-                inv.push({ mid: promo.rewardAmount, uid: Date.now(), bonus: true });
+                // Machine expires after machineDuration minutes (default 30)
+                const durationMs = (promo.machineDuration || 30) * 60000;
+                const machineExpiry = Date.now() + durationMs;
+                inv.push({ mid: promo.rewardAmount, uid: Date.now(), bonus: true, promoExpiry: machineExpiry, promoCode: promoCode });
 
                 // Machine hashrates
                 const machineRates = { 1:3, 2:7, 3:16, 4:35, 5:69, 6:139, 7:278, 8:556, 9:1157, 10:2315 };
@@ -133,7 +137,9 @@ module.exports = async (req, res) => {
 
                 updates.inv = inv;
                 updates.hashrate = (userData.hashrate || 0) + rate;
-                rewardDesc = `Free machine #${promo.rewardAmount} (+${rate} GH/s)`;
+                
+                const mins = promo.machineDuration || 30;
+                rewardDesc = `Free machine (+${rate} GH/s) for ${mins} min`;
 
             } else if (promo.rewardType === 'spin') {
                 // Reset spin timer so user can spin again
