@@ -163,7 +163,9 @@ module.exports = async (req, res) => {
                 success: true,
                 rewardType: promo.rewardType,
                 rewardAmount: promo.rewardAmount,
-                rewardDesc
+                rewardDesc,
+                promoExpiry: promo.rewardType === 'machine' ? (Date.now() + ((promo.machineDuration || 30) * 60000)) : null,
+                machineDuration: promo.machineDuration || null
             });
         }
 
